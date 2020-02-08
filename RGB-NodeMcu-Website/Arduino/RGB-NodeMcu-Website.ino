@@ -1,10 +1,5 @@
-#include "FS.h"
 #include <ESP8266WiFi.h>
-#include <PubSubClient.h>
-#include <NTPClient.h>
-#include <WiFiUdp.h>
 
-// Update these with values suitable for your network.
 int red = 5;
 int green = 4;
 int blue = 0;
@@ -13,109 +8,33 @@ int greenStatus = digitalRead(green);
 int blueStatus = digitalRead(blue);
 const char* ssid = "Naina";
 const char* password = "12345678a";
-//const char* ssid = "twguest";
 //const char* password = "dingy tiger slacks accustom pretzel";
+WiFiServer server(80);
 
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org");
-
-const char* AWS_endpoint = "a3gqm9sszde7zz-ats.iot.ap-south-1.amazonaws.com"; //MQTT broker ip
-
-
-void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
-
-  if (strcmp(topic, "mysmarthome/turnonred") == 0) {
-    Red();
-  }
-  if (strcmp(topic, "mysmarthome/turnonblue") == 0) {
-    Blue();
-  }
-  if (strcmp(topic, "mysmarthome/turnongreen") == 0) {
-    Green();
-  }
-  if (strcmp(topic, "mysmarthome/turnoff") == 0) {
-    Off();
-  }
-}
-WiFiClientSecure espClient;
-PubSubClient client(AWS_endpoint, 8883, callback, espClient); //set  MQTT port number to 8883 as per //standard
-long lastMsg = 0;
-char msg[50];
-int value = 0;
-
-void setup_wifi() {
-  // We start by connecting to a WiFi network
-  espClient.setBufferSizes(512, 512);
+void setup() {
+  Serial.begin(115200);
+  pinMode(red, OUTPUT);
+  pinMode(green, OUTPUT);
+  pinMode(blue, OUTPUT);
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
-
   WiFi.begin(ssid, password);
-
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-
   Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+  Serial.println("Connected to Wifi");
 
-  timeClient.begin();
-  while (!timeClient.update()) {
-    timeClient.forceUpdate();
-  }
+  //Start WiFi server
+  server.begin();
+  Serial.println("Server started!");
 
-  espClient.setX509Time(timeClient.getEpochTime());
-}
-
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    if (client.connect("TwLedThing")) {
-      Serial.println("connected");
-      // Once connected, publish an announcement...
-      //      client.publish("outTopic", "hello world");
-      // ... and resubscribe
-      client.subscribe("mysmarthome/turnoff");
-      client.subscribe("mysmarthome/turnonred");
-      client.subscribe("mysmarthome/turnonblue");
-      client.subscribe("mysmarthome/turnongreen");
-
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-
-      char buf[256];
-      espClient.getLastSSLError(buf, 256);
-      Serial.print("WiFiClientSecure SSL error: ");
-      Serial.println(buf);
-      delay(5000);
-    }
-  }
-}
-
-void Blue() {
-  digitalWrite(red, HIGH);
-  digitalWrite(green, HIGH);
-  digitalWrite(blue, LOW);
-}
-
-void Green() {
-  digitalWrite(red, HIGH);
-  digitalWrite(green, LOW);
-  digitalWrite(blue, HIGH);
+  // Print the IP address
+  Serial.print("Use this URL to connect: http://");
+  Serial.print(WiFi.localIP());
+  Serial.println("/");
 }
 
 void Red() {
@@ -123,96 +42,84 @@ void Red() {
   digitalWrite(green, HIGH);
   digitalWrite(blue, HIGH);
 }
-
+void Green() {
+  digitalWrite(red, HIGH);
+  digitalWrite(green, LOW);
+  digitalWrite(blue, HIGH);
+}
+void Blue() {
+  digitalWrite(red, HIGH);
+  digitalWrite(green, HIGH);
+  digitalWrite(blue, LOW);
+}
 void Off() {
   digitalWrite(red, HIGH);
   digitalWrite(green, HIGH);
   digitalWrite(blue, HIGH);
 }
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(red, OUTPUT);
-  pinMode(green, OUTPUT);
-  pinMode(blue, OUTPUT);
-  Serial.setDebugOutput(true);
-  setup_wifi();
-  delay(1000);
-  if (!SPIFFS.begin()) {
-    Serial.println("Failed to mount file system");
+void loop() {
+  // Check if a client has connected
+  WiFiClient client = server.available();
+  if (!client) {
     return;
   }
 
-  Serial.print("Heap: "); Serial.println(ESP.getFreeHeap());
-
-  // Load certificate file
-  File cert = SPIFFS.open("/cert.der", "r"); //replace cert.crt with your uploaded file name
-  if (!cert) {
-    Serial.println("Failed to open cert file");
+  // Wait until the client sends some data
+  while (!client.available()) {
+    delay(1);
   }
-  else
-    Serial.println("Success to open cert file");
 
-  delay(1000);
+  // Read the first line of the request
+  String request = client.readStringUntil('\r');
+  Serial.println(request);
+  client.flush();
 
-  if (espClient.loadCertificate(cert))
-    Serial.println("cert loaded");
-  else
-    Serial.println("cert not loaded");
+  // Match the request
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/html");
+  client.println("Connection: close");
+  client.println(""); //  do not forget this one
+  client.println("<!DOCTYPE html><html>");
 
-  // Load private key file
-  File private_key = SPIFFS.open("/private.der", "r"); //replace private eith your uploaded file name
-  if (!private_key) {
-    Serial.println("Failed to open private cert file");
+  if (request.indexOf("/RED=ON") != -1)  {
+    Serial.println("RED is HIGH" );
+    Red();
+    redStatus = digitalRead(red);
+    greenStatus = 0;
+    blueStatus = 0;
   }
-  else
-    Serial.println("Success to open private cert file");
-
-  delay(1000);
-
-  if (espClient.loadPrivateKey(private_key))
-    Serial.println("private key loaded");
-  else
-    Serial.println("private key not loaded");
-
-
-
-  // Load CA file
-  File ca = SPIFFS.open("/ca.der", "r"); //replace ca eith your uploaded file name
-  if (!ca) {
-    Serial.println("Failed to open ca ");
+  if (request.indexOf("/GREEN=ON") != -1)  {
+    Serial.println("GREEN is HIGH" );
+    Green();
+    greenStatus = digitalRead(green);
+    redStatus = 0;
+    blueStatus = 0;
   }
-  else
-    Serial.println("Success to open ca");
-
-  delay(1000);
-
-  if (espClient.loadCACert(ca))
-    Serial.println("ca loaded");
-  else
-    Serial.println("ca failed");
-
-  Serial.print("Heap: "); Serial.println(ESP.getFreeHeap());
-}
-
-
-
-void loop() {
-
-  if (!client.connected()) {
-    reconnect();
+  if (request.indexOf("/BLUE=ON") != -1)  {
+    Serial.println("BLUE is HIGH" );
+    Blue();
+    blueStatus = digitalRead(blue);
+    redStatus = 0;
+    greenStatus = 0;
   }
-  client.loop();
+  if (request.indexOf("/OFF=OFF") != -1)  {
+    Off();
+  }
 
-  long now = millis();
+  client.print("Led Status : ");client.println();
+  client.print("RED: "); client.println(redStatus);
+  client.print("GREEN: "); client.println(greenStatus);
+  client.print("BLUE: "); client.println(blueStatus);
 
-  //  if (now - lastMsg > 2000) {
-  //    lastMsg = now;
-  //    ++value;
-  //    snprintf (msg, 75, "hello world #%ld", value);
-  ////    Serial.print("Publish message: ");
-  ////    Serial.println(msg);
-  //    //    client.publish("outTopic", msg);
-  //    Serial.print("Heap: "); Serial.println(ESP.getFreeHeap()); //Low heap can cause problems
-  //  }
+  client.println("<br><br>");
+  client.println("<a href=\"/RED=ON\"\"><button>RED ON</button></a>");
+  client.println("<a href=\"/GREEN=ON\"\"><button>GREEN ON</button></a>");
+  client.println("<a href=\"/BLUE=ON\"\"><button>BLUE ON</button></a>");
+  client.println("<a href=\"/OFF=OFF\"\"><button>OFF</button></a>");
+  client.println("</html>");
+
+
+
+  delay(1);
+
 }
