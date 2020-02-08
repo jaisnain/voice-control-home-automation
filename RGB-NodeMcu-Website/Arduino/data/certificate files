@@ -1,0 +1,5 @@
+Keep encrypted certificate files here using these command:
+
+$ openssl x509 -in xxx-certificate.pem.crt -out cert.der -outform DER 
+$ openssl rsa -in xxx-private.pem.key -out private.der -outform DER
+$ openssl x509 -in AmazonRootCA1.pem -out ca.der -outform DER
