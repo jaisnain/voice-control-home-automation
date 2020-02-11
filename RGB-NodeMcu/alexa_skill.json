@@ -1,0 +1,65 @@
+{
+    "interactionModel": {
+        "languageModel": {
+            "invocationName": "tw led",
+            "intents": [
+                {
+                    "name": "AMAZON.FallbackIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.CancelIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.HelpIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.StopIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.NavigateHomeIntent",
+                    "samples": []
+                },
+                {
+                    "name": "turnoffIntent",
+                    "slots": [],
+                    "samples": [
+                        "turn off LED",
+                        "switch off LED",
+                        "LED off",
+                        "LED turn off"
+                    ]
+                },
+                {
+                    "name": "BlinkIntent",
+                    "slots": [],
+                    "samples": [
+                        "to blink LED",
+                        "blink LED"
+                    ]
+                },
+                {
+                    "name": "turnonIntent",
+                    "slots": [],
+                    "samples": [
+                        "LED turn on",
+                        "LED on",
+                        "switch on LED",
+                        "turn on LED"
+                    ]
+                },
+                {
+                    "name": "TurnOnRed",
+                    "slots": [],
+                    "samples": [
+                        "turn on red led"
+                    ]
+                }
+            ],
+            "types": []
+        }
+    }
+}
